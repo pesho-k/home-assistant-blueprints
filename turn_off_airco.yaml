@@ -6,23 +6,33 @@ blueprint:
   input:
     temperature_sensor:
       name: Temperature Sensor
+      description: The sensor that measures the temperature in the target room
+      selector:
+        entity:
+          domain: sensor
+    power_approximation_sensor:
+      name: Power Approximation Sensor
+      description: >
+        The sensor that approximates the available solar power (negative values mean power surplus).
+        This is used to trigger turning off the airco when the generated solar power is insufficient.
       selector:
         entity:
           domain: sensor
     climate_entity:
       name: Climate Entity
+      description: The climate entity for the airco to turn off
       selector:
         entity:
           domain: climate
     min_temp:
       name: Minimum Temperature Threshold
-      description: The minimum temperature in the room
+      description: The airco will turn off if the temperature drops below this value
       default: 19
       selector:
         number:
-          min: 15
-          max: 27
-          step: 1
+          min: 17
+          max: 22
+          step: 0.5
     lowest_temperature_sensor:
       name: Lowest Temperature Sensor
       description: A template sensor that represents the lowest temperature among active airco rooms
@@ -31,47 +41,101 @@ blueprint:
           domain: sensor
     airco_turning_off_boolean:
       name: Airco Turning Off Boolean
-      description: The input_boolean helper to avoid multiple triggers
+      description: The input_boolean helper that shows if any airco is currently being turned off (to avoid multiple triggers).
       selector:
         entity:
           domain: input_boolean
+    disable_airco_xyz_boolean:
+      name: Disable Airco XYZ Boolean
+      description: >
+        An input_boolean that, when ON, disables this automation.
+        This is useful for manual control or maintenance.
+      selector:
+        entity:
+          domain: input_boolean
+    related_airco_automations:
+      name: Related Airco Automations
+      description: List of related automation entity_ids
+      selector:
+        entity:
+          domain: automation
+          multiple: true
 
-trigger:
-  - platform: numeric_state
-    entity_id: !input temperature_sensor
+variables:
+  climate_entity: !input climate_entity
+  temperature_sensor: !input temperature_sensor
+  lowest_temperature_sensor: !input lowest_temperature_sensor
+  power_approximation_sensor: !input power_approximation_sensor
+
+triggers:
+  - entity_id: !input temperature_sensor
     below: !input min_temp
-  - platform: numeric_state
-    entity_id: sensor.p1_power_approximation
+    trigger: numeric_state
+    id: low_temperature_trigger
+  - entity_id: !input power_approximation_sensor
     above: 0
-
-condition:
-  - condition: template
-    value_template: >
-      {{ states(!input.climate_entity) != 'off' }}
-  - condition: template
-    value_template: >
-      {{ (states(!input.temperature_sensor) | float(100)) <= (states(!input.lowest_temperature_sensor) | float(100)) }}
-  - condition: state
-    entity_id: !input airco_turning_off_boolean
+    trigger: numeric_state
+conditions:
+  - alias: The airco is not disabled
+    condition: state
+    entity_id: !input disable_airco_xyz_boolean
     state: "off"
-
-action:
-  - service: input_boolean.turn_on
-    target:
+  - alias: The airco is currently ON
+    condition: template
+    value_template: "{{ states(climate_entity) != 'off' }}"
+  - alias: >-
+      If triggered by insufficient power AND this is the airco in the coldest
+      active airco location AND no other airco is being turned off at the moment
+      (to prevent race conditions).
+    condition: or
+    conditions:
+      - condition: trigger
+        id: low_temperature_trigger
+      - condition: and
+        conditions:
+          - condition: template
+            value_template: >-
+              {{ (states(power_approximation_sensor)|float(0) >= 0) }}
+          - condition: template
+            value_template: >-
+              {{ (states(temperature_sensor)|float(0) <=
+              states(lowest_temperature_sensor)|float(100))
+              }}
+          - condition: state
+            entity_id: !input airco_turning_off_boolean
+            state: "off"
+actions:
+  - target:
       entity_id: !input airco_turning_off_boolean
+    action: input_boolean.turn_on
+    data: {}
   - delay: "00:00:05"
-  - service: climate.turn_off
-    target:
+  - target:
       entity_id: !input climate_entity
-  - service: logbook.log
-    data:
-      name: Airco Automation
-      message: >
-        Airco {{ !input.climate_entity }} turned OFF due to low temp or insufficient solar power
-      entity_id: !input climate_entity
-  - delay: "00:00:30"
-  - service: input_boolean.turn_off
-    target:
+    action: climate.turn_off
+    data: {}
+  - data:
+      title: >
+        {{ climate_entity }} turned OFF
+      message: |
+        {{ climate_entity }} turned OFF.
+        Current temperature: {{ states(temperature_sensor) }}°C
+        Total active aircos: {{ (states('sensor.active_aircos')|int) - 1 }}
+        Power Approximation: {{ states(power_approximation_sensor) }}W
+    action: notify.email_gmail
+    metadata: {}
+  - delay: "00:02:30"
+  - target:
       entity_id: !input airco_turning_off_boolean
-
+    action: input_boolean.turn_off
+    data: {}
+  - repeat:
+      for_each: !input related_airco_automations
+      sequence:
+        - service: automation.trigger
+          target:
+            entity_id: "{{ repeat.item }}"
+          data:
+            skip_condition: false
 mode: single
+

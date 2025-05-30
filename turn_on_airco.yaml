@@ -1,0 +1,139 @@
+blueprint:
+  name: Turn ON Airco
+  description: Turns on an airco if warm enough and enough solar power is available
+  domain: automation
+  input:
+    climate_entity:
+      name: Climate Entity
+      description: The climate entity to turn on
+      selector:
+        entity:
+          domain: climate
+    temperature_sensor:
+      name: Temperature Sensor
+      description: The temperature sensor for this room
+      selector:
+        entity:
+          domain: sensor
+    trigger_temp:
+      name: Trigger Temperature
+      description: The temperature above which the airco should turn on
+      default: 21
+      selector:
+        number:
+          min: 20
+          max: 25
+          step: 0.5
+    required_power_surplus_sensor:
+      name: Required Power Surplus Sensor
+      description: Sensor with required power surplus for airco
+      selector:
+        entity:
+          domain: sensor
+    power_approximation_sensor:
+      name: Power Approximation Sensor
+      description: Power approximation sensor
+      selector:
+        entity:
+          domain: sensor
+    highest_inactive_temp_sensor:
+      name: Highest Temp in Inactive Airco Location
+      description: The highest temperature among locations with inactive aircos
+      selector:
+        entity:
+          domain: sensor
+    disable_switch:
+      name: Disable Airco Input Boolean
+      description: input_boolean to disable this automation
+      selector:
+        entity:
+          domain: input_boolean
+    airco_turning_on_boolean:
+      name: Airco Turning On Input Boolean
+      description: input_boolean to avoid multiple triggers (race conditions)
+      selector:
+        entity:
+          domain: input_boolean
+    related_airco_automations:
+      name: Related Airco Automations
+      description: List of related automation entity_ids
+      selector:
+        entity:
+          domain: automation
+          multiple: true
+    active_aircos_sensor:
+      name: Active Aircos Sensor
+      description: Sensor that counts the number of active aircos
+      selector:
+        entity:
+          domain: sensor
+
+variables:
+  temperature_sensor: !input temperature_sensor
+  highest_inactive_temp_sensor: !input highest_inactive_temp_sensor
+  climate_entity: !input climate_entity
+  active_aircos_sensor: !input active_aircos_sensor
+  power_approximation_sensor: !input power_approximation_sensor
+  required_power_surplus_sensor: !input required_power_surplus_sensor
+
+trigger:
+  - platform: numeric_state
+    entity_id: !input temperature_sensor
+    above: !input trigger_temp
+  - platform: numeric_state
+    entity_id: !input power_approximation_sensor
+    below: !input required_power_surplus_sensor
+
+condition:
+  - condition: state
+    entity_id: !input disable_switch
+    state: "off"
+  - condition: numeric_state
+    entity_id: !input temperature_sensor
+    above: !input trigger_temp
+  - condition: numeric_state
+    entity_id: !input power_approximation_sensor
+    below: !input required_power_surplus_sensor
+  - condition: state
+    entity_id: !input climate_entity
+    state: "off"
+  - condition: template
+    value_template: >
+      {{ (states(temperature_sensor)|float(0)) >= (states(highest_inactive_temp_sensor)|float(100)) }}
+  - condition: state
+    entity_id: !input airco_turning_on_boolean
+    state: "off"
+
+action:
+  - service: input_boolean.turn_on
+    target:
+      entity_id: !input airco_turning_on_boolean
+  - delay: "00:00:05"
+  - service: climate.turn_on
+    target:
+      entity_id: !input climate_entity
+  - service: notify.email_gmail
+    metadata: {}
+    data:
+      title: >
+        {{ climate_entity }} turned ON
+      message: |
+        {{ climate_entity }} turned ON.
+        Current temperature: {{ states(temperature_sensor) }}°C
+        Total active aircos: {{ (states(active_aircos_sensor)|int) + 1 }}
+        Power Approximation: {{ states(power_approximation_sensor) }}W
+        Required: {{ states(required_power_surplus_sensor) }}W
+  - delay: "00:02:30"
+  - service: input_boolean.turn_off
+    target:
+      entity_id: !input airco_turning_on_boolean
+  - repeat:
+      for_each: !input related_airco_automations
+      sequence:
+        - service: automation.trigger
+          target:
+            entity_id: "{{ repeat.item }}"
+          data:
+            skip_condition: false
+
+mode: single
