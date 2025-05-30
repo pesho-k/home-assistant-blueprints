@@ -47,13 +47,19 @@ trigger:
 condition:
   - condition: template
     value_template: >
-      {{ states(!input.climate_entity) != 'off' }}
+      {% set climate_entity = !input climate_entity %}
+      {{ states(climate_entity) != 'off' }}
+
   - condition: template
     value_template: >
-      {{ (states(!input.temperature_sensor) | float(100)) <= (states(!input.lowest_temperature_sensor) | float(100)) }}
+      {% set temp_sensor = !input temperature_sensor %}
+      {% set lowest_temp_sensor = !input lowest_temperature_sensor %}
+      {{ states(temp_sensor) | float(100) <= states(lowest_temp_sensor) | float(100) }}
+
   - condition: state
     entity_id: !input airco_turning_off_boolean
     state: "off"
+
 
 action:
   - service: input_boolean.turn_on
@@ -67,7 +73,7 @@ action:
     data:
       name: Airco Automation
       message: >
-        Airco {{ !input.climate_entity }} turned OFF due to low temp or insufficient solar power
+        Airco {{ inputs.climate_entity }} turned OFF due to low temp or insufficient solar power
       entity_id: !input climate_entity
   - delay: "00:00:30"
   - service: input_boolean.turn_off
