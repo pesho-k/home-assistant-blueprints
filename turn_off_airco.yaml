@@ -1,0 +1,77 @@
+blueprint:
+  name: Turn OFF Airco
+  description: >
+    Turns off an airco when the room temperature is too low or insufficient solar power is available.
+  domain: automation
+  input:
+    temperature_sensor:
+      name: Temperature Sensor
+      selector:
+        entity:
+          domain: sensor
+    climate_entity:
+      name: Climate Entity
+      selector:
+        entity:
+          domain: climate
+    min_temp:
+      name: Minimum Temperature Threshold
+      description: The minimum temperature in the room
+      default: 19
+      selector:
+        number:
+          min: 15
+          max: 27
+          step: 1
+    lowest_temperature_sensor:
+      name: Lowest Temperature Sensor
+      description: A template sensor that represents the lowest temperature among active airco rooms
+      selector:
+        entity:
+          domain: sensor
+    airco_turning_off_boolean:
+      name: Airco Turning Off Boolean
+      description: The input_boolean helper to avoid multiple triggers
+      selector:
+        entity:
+          domain: input_boolean
+
+trigger:
+  - platform: numeric_state
+    entity_id: !input temperature_sensor
+    below: !input min_temp
+  - platform: numeric_state
+    entity_id: sensor.p1_power_approximation
+    above: 0
+
+condition:
+  - condition: template
+    value_template: >
+      {{ states(!input.climate_entity) != 'off' }}
+  - condition: template
+    value_template: >
+      {{ (states(!input.temperature_sensor) | float(100)) <= (states(!input.lowest_temperature_sensor) | float(100)) }}
+  - condition: state
+    entity_id: !input airco_turning_off_boolean
+    state: "off"
+
+action:
+  - service: input_boolean.turn_on
+    target:
+      entity_id: !input airco_turning_off_boolean
+  - delay: "00:00:05"
+  - service: climate.turn_off
+    target:
+      entity_id: !input climate_entity
+  - service: logbook.log
+    data:
+      name: Airco Automation
+      message: >
+        Airco {{ !input.climate_entity }} turned OFF due to low temp or insufficient solar power
+      entity_id: !input climate_entity
+  - delay: "00:00:30"
+  - service: input_boolean.turn_off
+    target:
+      entity_id: !input airco_turning_off_boolean
+
+mode: single
