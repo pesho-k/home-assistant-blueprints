@@ -61,6 +61,11 @@ blueprint:
           domain: automation
           multiple: true
 
+variables:
+  climate_entity: !input climate_entity
+  temperature_sensor: !input temperature_sensor
+  lowest_temperature_sensor: !input lowest_temperature_sensor
+
 triggers:
   - entity_id: !input temperature_sensor
     below: !input min_temp
@@ -77,7 +82,7 @@ conditions:
     state: "off"
   - alias: The airco is currently ON
     condition: template
-    value_template: "{{ states('!input climate_entity') != 'off' }}"
+    value_template: "{{ states(climate_entity) != 'off' }}"
   - alias: >-
       If triggered by insufficient power AND this is the airco in the coldest
       active airco location AND no other airco is being turned off at the moment
@@ -88,8 +93,8 @@ conditions:
         id: insufficient_power
       - condition: template
         value_template: >-
-          {{ (states('!input temperature_sensor')|float(0) <=
-          states('!input lowest_temperature_sensor')|float(100))
+          {{ (states(temperature_sensor)|float(0) <=
+          states(lowest_temperature_sensor)|float(100))
           }}
       - condition: state
         entity_id: !input airco_turning_off_boolean
