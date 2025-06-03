@@ -121,7 +121,7 @@ action:
         states(power_approximation_sensor) }}W; Required: {{
         states(required_power_surplus_sensor) }}W.
       entity_id: !input climate_entity
-  - delay: "00:00:30"
+  - delay: "00:02:30"
   - service: input_boolean.turn_off
     target:
       entity_id: !input airco_turning_on_boolean

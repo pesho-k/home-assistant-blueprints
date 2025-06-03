@@ -113,7 +113,7 @@ actions:
       name: Airco Automation
       message: Zolder airco turned OFF due to low temp or insufficient solar power
     action: logbook.log
-  - delay: "00:00:30"
+  - delay: "00:02:30"
   - target:
       entity_id: !input airco_turning_off_boolean
     action: input_boolean.turn_off
