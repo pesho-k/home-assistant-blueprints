@@ -65,16 +65,16 @@ variables:
   climate_entity: !input climate_entity
   temperature_sensor: !input temperature_sensor
   lowest_temperature_sensor: !input lowest_temperature_sensor
+  power_approximation_sensor: !input power_approximation_sensor
 
 triggers:
   - entity_id: !input temperature_sensor
     below: !input min_temp
     trigger: numeric_state
-    id: temperature_target
+    id: low_temperature_trigger
   - entity_id: !input power_approximation_sensor
     above: 0
     trigger: numeric_state
-    id: insufficient_power
 conditions:
   - alias: The airco is not disabled
     condition: state
@@ -87,18 +87,23 @@ conditions:
       If triggered by insufficient power AND this is the airco in the coldest
       active airco location AND no other airco is being turned off at the moment
       (to prevent race conditions).
-    condition: and
+    condition: or
     conditions:
       - condition: trigger
-        id: insufficient_power
-      - condition: template
-        value_template: >-
-          {{ (states(temperature_sensor)|float(0) <=
-          states(lowest_temperature_sensor)|float(100))
-          }}
-      - condition: state
-        entity_id: !input airco_turning_off_boolean
-        state: "off"
+        id: low_temperature_trigger
+      - condition: and
+        conditions:
+          - condition: template
+            value_template: >-
+              {{ (states(power_approximation_sensor)|float(0) >= 0) }}
+          - condition: template
+            value_template: >-
+              {{ (states(temperature_sensor)|float(0) <=
+              states(lowest_temperature_sensor)|float(100))
+              }}
+          - condition: state
+            entity_id: !input airco_turning_off_boolean
+            state: "off"
 actions:
   - target:
       entity_id: !input airco_turning_off_boolean
