@@ -1,0 +1,30 @@
+blueprint:
+  name: Enable Airco When Button Unpressed
+  description: >
+    Re-enables the airco automation when a specified boolean (e.g., sleep mode) is turned off.
+  domain: automation
+  input:
+    trigger_boolean:
+      name: Trigger Boolean
+      description: The input_boolean or entity that triggers the action (e.g., sleep mode)
+      selector:
+        entity:
+          domain: input_boolean
+    disable_airco_boolean:
+      name: Disable Airco Boolean
+      description: The input_boolean used to disable the airco automation
+      selector:
+        entity:
+          domain: input_boolean
+
+trigger:
+  - platform: state
+    entity_id: !input trigger_boolean
+    to: "off"
+
+condition: []
+
+action:
+  - service: input_boolean.turn_off
+    target:
+      entity_id: !input disable_airco_boolean

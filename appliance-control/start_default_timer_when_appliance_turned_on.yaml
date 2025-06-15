@@ -1,0 +1,61 @@
+blueprint:
+  name: Start Default Timer When Appliance Turned On
+  description: >
+    Starts the appliance timer for a specified number of minutes when the appliance is toggled on,
+    but only if the timer is not already running.
+  domain: automation
+  input:
+    appliance_on_boolean:
+      name: Appliance On Boolean
+      description: The input_boolean that represents the appliance's on/off state
+      selector:
+        entity:
+          domain: input_boolean
+    appliance_timer:
+      name: Appliance Timer
+      description: The timer entity for the appliance
+      selector:
+        entity:
+          domain: timer
+    appliance_timer_minutes:
+      name: Appliance Timer Minutes
+      description: The input_number entity for the timer's minutes
+      selector:
+        entity:
+          domain: input_number
+    timer_duration_minutes:
+      name: Timer Duration (Minutes)
+      description: Number of minutes to set the timer for when toggled on
+      default: 45
+      selector:
+        number:
+          min: 1
+          max: 240
+          step: 1
+
+variables:
+  timer_duration_minutes: !input timer_duration_minutes
+
+trigger:
+  - platform: state
+    entity_id: !input appliance_on_boolean
+    to: "on"
+
+condition:
+  - condition: numeric_state
+    entity_id: !input appliance_timer_minutes
+    below: 1
+
+action:
+  - service: timer.start
+    target:
+      entity_id: !input appliance_timer
+    data:
+      duration: "{{ '00:%02d:00' | format(timer_duration_minutes) }}"
+  - service: input_number.set_value
+    target:
+      entity_id: !input appliance_timer_minutes
+    data:
+      value: !input timer_duration_minutes
+
+mode: single

@@ -1,0 +1,49 @@
+blueprint:
+  name: Stop Airco and Disable Automation When Button Pressed
+  description: |
+    Turns off a specified airco (if not off) and disables its automation when the specified boolean is turned ON.
+  domain: automation
+  input:
+    sleep_boolean:
+      name: Boolean
+      description: Input boolean that indicates the action should happen
+      selector:
+        entity:
+          domain: input_boolean
+    airco_entity:
+      name: Airco Entity
+      description: The climate device to turn off
+      selector:
+        entity:
+          domain: climate
+    disable_airco_boolean:
+      name: Disable Airco Automation Boolean
+      description: The input_boolean to set to true to disable airco automation
+      selector:
+        entity:
+          domain: input_boolean
+
+variables:
+  airco_entity: !input airco_entity
+
+trigger:
+  - platform: state
+    entity_id: !input sleep_boolean
+    to: "on"
+
+condition: []
+
+action:
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ states(airco_entity) != 'off' }}"
+        sequence:
+          - service: climate.turn_off
+            target:
+              entity_id: !input airco_entity
+  - service: input_boolean.turn_on
+    target:
+      entity_id: !input disable_airco_boolean
+
+mode: single

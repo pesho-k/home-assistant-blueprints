@@ -1,0 +1,31 @@
+blueprint:
+  name: Turn Off Appliance Boolean When Timer Ends
+  description: >
+    Turns off the appliance's on/off boolean when the specified timer finishes.
+  domain: automation
+  input:
+    appliance_timer:
+      name: Appliance Timer
+      description: The timer entity for the appliance
+      selector:
+        entity:
+          domain: timer
+    appliance_on_boolean:
+      name: Appliance On Boolean
+      description: The input_boolean that represents the appliance's on/off state
+      selector:
+        entity:
+          domain: input_boolean
+
+trigger:
+  - platform: event
+    event_type: timer.finished
+    event_data:
+      entity_id: !input appliance_timer
+
+condition: []
+
+action:
+  - service: input_boolean.turn_off
+    target:
+      entity_id: !input appliance_on_boolean
