@@ -1,0 +1,44 @@
+blueprint:
+  name: End Appliance Timer When Appliance Turned Off
+  description: >
+    Finishes the appliance timer if the appliance toggle is turned off.
+    Use this blueprint for any appliance with a timer and an on/off toggle.
+  domain: automation
+  input:
+    appliance_toggle:
+      name: Appliance Toggle
+      description: The input_boolean or switch that represents the appliance's on/off state
+      selector:
+        entity:
+          domain:
+            - input_boolean
+            - switch
+    appliance_timer:
+      name: Appliance Timer
+      description: The timer entity for the appliance
+      selector:
+        entity:
+          domain: timer
+    appliance_timer_minutes:
+      name: Appliance Timer Minutes
+      description: The input_number entity for the timer's minutes
+      selector:
+        entity:
+          domain: input_number
+
+trigger:
+  - platform: state
+    entity_id: !input appliance_toggle
+    to: "off"
+
+action:
+  - service: timer.finish
+    target:
+      entity_id: !input appliance_timer
+  - service: input_number.set_value
+    target:
+      entity_id: !input appliance_timer_minutes
+    data:
+      value: 0
+
+mode: single

@@ -1,0 +1,61 @@
+blueprint:
+  name: Set Appliance Timer When Minutes Change
+  description: >
+    Sets or finishes an appliance timer based on changes to an input_number entity.
+    Turns the appliance on if the timer is set, and off if the timer is cleared.
+  domain: automation
+  input:
+    appliance_timer_minutes:
+      name: Appliance Timer Minutes
+      description: The input_number entity for the timer's minutes
+      selector:
+        entity:
+          domain: input_number
+    appliance_timer:
+      name: Appliance Timer
+      description: The timer entity for the appliance
+      selector:
+        entity:
+          domain: timer
+    appliance_on_boolean:
+      name: Appliance On Boolean
+      description: The input_boolean that represents the appliance's on/off state
+      selector:
+        entity:
+          domain: input_boolean
+
+variables:
+  appliance_timer_minutes: !input appliance_timer_minutes
+
+trigger:
+  - platform: state
+    entity_id: !input appliance_timer_minutes
+
+action:
+  - choose:
+      - conditions:
+          - condition: numeric_state
+            entity_id: !input appliance_timer_minutes
+            above: 0
+        sequence:
+          - service: timer.start
+            target:
+              entity_id: !input appliance_timer
+            data:
+              duration: "{{ '00:%02d:00' | format(states(appliance_timer_minutes) | int(0)) }}"
+          - service: input_boolean.turn_on
+            target:
+              entity_id: !input appliance_on_boolean
+      - conditions:
+          - condition: numeric_state
+            entity_id: !input appliance_timer_minutes
+            below: 1
+        sequence:
+          - service: timer.finish
+            target:
+              entity_id: !input appliance_timer
+          - service: input_boolean.turn_off
+            target:
+              entity_id: !input appliance_on_boolean
+
+mode: single

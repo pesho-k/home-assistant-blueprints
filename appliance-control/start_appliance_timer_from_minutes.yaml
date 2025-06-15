@@ -1,0 +1,28 @@
+blueprint:
+  name: Start Appliance Timer from Minutes
+  description: >
+    Starts the appliance timer using the value from an input_number entity (minutes).
+  domain: script
+  input:
+    appliance_timer_minutes:
+      name: Appliance Timer Minutes
+      description: The input_number entity for the timer's minutes
+      selector:
+        entity:
+          domain: input_number
+    appliance_timer:
+      name: Appliance Timer
+      description: The timer entity for the appliance
+      selector:
+        entity:
+          domain: timer
+
+mode: single
+sequence:
+  - variables:
+      minutes: "{{ states(appliance_timer_minutes) | int }}"
+  - service: timer.start
+    target:
+      entity_id: !input appliance_timer
+    data:
+      duration: "{{ '00:%02d:00' | format(minutes) }}"
