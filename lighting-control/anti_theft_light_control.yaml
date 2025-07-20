@@ -19,22 +19,21 @@ blueprint:
 trigger:
   - platform: sun
     event: sunset
-    offset: "00:50:00"
+    offset: "01:45:00"
 
 condition: []
 
 action:
   - variables:
-      random_on_offset: "{{ range(0, 20*60)|random }}"
+      random_on_offset: "{{ range(0, 1*60)|random }}"
       random_off_offset: "{{ range(-22*60, 22*60)|random }}"
       off_time_input: !input off_time
-      switch_entity: !input switch_target
       on_delay: "{{ random_on_offset }}"
   - delay:
       seconds: "{{ on_delay }}"
   - service: switch.turn_on
     target:
-      entity_id: "{{ switch_entity }}"
+      entity_id:  !input switch_target
   - variables:
       off_datetime: >
         {% set t = off_time_input.split(':') %}
@@ -49,4 +48,4 @@ action:
         at: "{{ off_datetime }}"
   - service: switch.turn_off
     target:
-      entity_id: "{{ switch_entity }}"
+      entity_id: !input switch_target
