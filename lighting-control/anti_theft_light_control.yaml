@@ -19,7 +19,7 @@ blueprint:
 trigger:
   - platform: sun
     event: sunset
-    offset: "01:49:00"
+    offset: "01:55:00"
 
 condition: []
 
