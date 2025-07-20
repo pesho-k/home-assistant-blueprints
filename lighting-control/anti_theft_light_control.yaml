@@ -9,12 +9,7 @@ blueprint:
       selector:
         entity:
           domain: switch
-    on_time:
-      name: On Time
-      description: The time to turn the switch on
-      default: "20:00:00"
-      selector:
-        time:
+
     off_time:
       name: Off time
       description: The target time to turn the switch off (±22 minutes)
@@ -22,20 +17,16 @@ blueprint:
       selector:
         time:
 
-# trigger:
-#   - platform: sun
-#     event: sunset
-#     offset: "01:55:00"
-
 trigger:
-  - platform: time
-    at: !input on_time
+  - platform: sun
+    event: sunset
+    offset: "00:00:00"
 
 condition: []
 
 action:
   - variables:
-      random_on_offset: "{{ range(0, 1*60)|random }}"
+      random_on_offset: "{{ range(0, 20*60)|random }}"
       random_off_offset: "{{ range(-22*60, 22*60)|random }}"
       off_time_input: !input off_time
       on_delay: "{{ random_on_offset }}"
