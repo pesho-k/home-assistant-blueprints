@@ -1,5 +1,5 @@
 blueprint:
-  name: Turn on switch after sunset and off at random time
+  name: Anti-theft Light Switch
   description: Turns on a switch (like a HomeWizard Energy Socket) randomly within 20 minutes after sunset and off at a random time around a target time.
   domain: automation
   input:
