@@ -42,8 +42,8 @@ action:
   - delay:
       seconds: "{{ on_delay }}"
   - service: switch.turn_on
-    target:
-      entity_id:  !input switch_target
+    entity_id: switch.energy_socket
+
   - variables:
       off_datetime: >
         {% set t = off_time_input.split(':') %}
