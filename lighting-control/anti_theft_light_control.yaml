@@ -46,17 +46,17 @@ action:
       entity_id: !input switch_target
 
   - variables:
-      off_datetime: >
+      off_delay_seconds: >
         {% set t = off_time_input.split(':') %}
         {% set now = now() %}
-        {% set base = now.replace(hour=t[0]|int, minute=t[1]|int, second=t[2]|int) %}
+        {% set base = now.replace(hour=t[0]|int, minute=t[1]|int, second=t[2]|int, microsecond=0) %}
         {% if base < now %}
           {% set base = base + timedelta(days=1) %}
         {% endif %}
-        {{ base + timedelta(seconds=random_off_offset) }}
-  - wait_for_trigger:
-      - platform: time
-        at: "{{ off_datetime }}"
-  # - service: switch.turn_off
-  #   target:
-  #     entity_id: !input switch_target
+        {% set final = base + timedelta(seconds=random_off_offset) %}
+        {{ (final - now).total_seconds() | int }}
+  - delay:
+      seconds: "{{ off_delay_seconds }}"
+  - service: switch.turn_off
+    target:
+      entity_id: !input switch_target
