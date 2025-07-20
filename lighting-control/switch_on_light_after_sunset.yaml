@@ -15,11 +15,6 @@ blueprint:
       default: "22:00:00"
       selector:
         time:
-  variables:
-    random_on_offset: "{{ range(0, 20*60)|random }}"
-    random_off_offset: "{{ range(-22*60, 22*60)|random }}"
-    off_time_input: !input off_time
-    switch_entity: !input switch_target
 
 trigger:
   - platform: sun
@@ -30,13 +25,16 @@ condition: []
 
 action:
   - variables:
+      random_on_offset: "{{ range(0, 20*60)|random }}"
+      random_off_offset: "{{ range(-22*60, 22*60)|random }}"
+      off_time_input: !input off_time
+      switch_entity: !input switch_target
       on_delay: "{{ random_on_offset }}"
   - delay:
       seconds: "{{ on_delay }}"
   - service: switch.turn_on
     target:
       entity_id: "{{ switch_entity }}"
-
   - variables:
       off_datetime: >
         {% set t = off_time_input.split(':') %}
@@ -52,5 +50,3 @@ action:
   - service: switch.turn_off
     target:
       entity_id: "{{ switch_entity }}"
-
-mode: single
