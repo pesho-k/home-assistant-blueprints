@@ -1,0 +1,56 @@
+blueprint:
+  name: Turn on switch after sunset and off at random time
+  description: Turns on a switch (like a HomeWizard Energy Socket) randomly within 20 minutes after sunset and off at a random time around a target time.
+  domain: automation
+  input:
+    switch_target:
+      name: Switch
+      description: The switch to control
+      selector:
+        entity:
+          domain: switch
+    off_time:
+      name: Off time
+      description: The target time to turn the switch off (±22 minutes)
+      default: "22:00:00"
+      selector:
+        time:
+  variables:
+    random_on_offset: "{{ range(0, 20*60)|random }}"
+    random_off_offset: "{{ range(-22*60, 22*60)|random }}"
+    off_time_input: !input off_time
+    switch_entity: !input switch_target
+
+trigger:
+  - platform: sun
+    event: sunset
+    offset: "00:00:00"
+
+condition: []
+
+action:
+  - variables:
+      on_delay: "{{ random_on_offset }}"
+  - delay:
+      seconds: "{{ on_delay }}"
+  - service: switch.turn_on
+    target:
+      entity_id: "{{ switch_entity }}"
+
+  - variables:
+      off_datetime: >
+        {% set t = off_time_input.split(':') %}
+        {% set now = now() %}
+        {% set base = now.replace(hour=t[0]|int, minute=t[1]|int, second=t[2]|int) %}
+        {% if base < now %}
+          {% set base = base + timedelta(days=1) %}
+        {% endif %}
+        {{ base + timedelta(seconds=random_off_offset) }}
+  - wait_for_trigger:
+      - platform: time
+        at: "{{ off_datetime }}"
+  - service: switch.turn_off
+    target:
+      entity_id: "{{ switch_entity }}"
+
+mode: single
