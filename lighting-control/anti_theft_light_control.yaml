@@ -41,13 +41,9 @@ action:
       on_delay: "{{ random_on_offset }}"
   - delay:
       seconds: "{{ on_delay }}"
-  - service: switch.turn_off
-    entity_id: switch.energy_socket
-  - delay:
-      seconds: 1
   - service: switch.turn_on
-    entity_id: switch.energy_socket
-
+    target:
+      entity_id: !input switch_target
 
   - variables:
       off_datetime: >
@@ -61,6 +57,6 @@ action:
   - wait_for_trigger:
       - platform: time
         at: "{{ off_datetime }}"
-  - service: switch.turn_off
-    target:
-      entity_id: !input switch_target
+  # - service: switch.turn_off
+  #   target:
+  #     entity_id: !input switch_target
