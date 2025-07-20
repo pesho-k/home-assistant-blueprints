@@ -41,8 +41,13 @@ action:
       on_delay: "{{ random_on_offset }}"
   - delay:
       seconds: "{{ on_delay }}"
+  - service: switch.turn_off
+    entity_id: switch.energy_socket
+  - delay:
+      seconds: 1
   - service: switch.turn_on
     entity_id: switch.energy_socket
+
 
   - variables:
       off_datetime: >
