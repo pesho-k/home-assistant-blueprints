@@ -20,14 +20,14 @@ blueprint:
 trigger:
   - platform: sun
     event: sunset
-    offset: "00:00:00"
+    offset: "-00:15:00"
 
 condition: []
 
 action:
   - variables:
       random_on_offset: "{{ range(0, 20*60)|random }}"
-      random_off_offset: "{{ range(-22*60, 22*60)|random }}"
+      random_off_offset: "{{ range(-15*60, 20*60)|random }}"
       off_time_input: !input off_time
       on_delay: "{{ random_on_offset }}"
   - delay:
