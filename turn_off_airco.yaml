@@ -1,7 +1,7 @@
 blueprint:
-  name: Turn OFF Airco
+  name: Turn OFF Airco (Season-Aware)
   description: >
-    Turns off an airco when the room temperature is too low or insufficient solar power is available.
+    Turns off an airco when conditions are met: for cooling mode when temperature drops or insufficient power; for heating mode when temperature rises or insufficient power.
   domain: automation
   input:
     temperature_sensor:
@@ -24,18 +24,29 @@ blueprint:
       selector:
         entity:
           domain: climate
-    min_temp:
-      name: Minimum Temperature Threshold
-      description: The airco will turn off if the temperature drops below this value
+    season_mode:
+      name: Season Mode
+      description: Select heating (winter) or cooling (summer) mode
+      default: cooling
+      selector:
+        select:
+          options:
+            - label: "Heating (Winter)"
+              value: "heating"
+            - label: "Cooling (Summer)"
+              value: "cooling"
+    off_temp:
+      name: Off Temperature Threshold
+      description: For cooling mode - airco turns off if temperature drops below this. For heating mode - airco turns off if temperature rises above this
       default: 19
       selector:
         number:
-          min: 17
-          max: 22
+          min: 15
+          max: 25
           step: 0.5
-    lowest_temperature_sensor:
-      name: Lowest Temperature Sensor
-      description: A template sensor that represents the lowest temperature among active airco rooms
+    priority_active_temp_sensor:
+      name: Priority Active Temperature Sensor
+      description: For cooling mode - lowest temp among active aircos. For heating mode - highest temp among active aircos
       selector:
         entity:
           domain: sensor
@@ -64,17 +75,24 @@ blueprint:
 variables:
   climate_entity: !input climate_entity
   temperature_sensor: !input temperature_sensor
-  lowest_temperature_sensor: !input lowest_temperature_sensor
+  priority_active_temp_sensor: !input priority_active_temp_sensor
   power_approximation_sensor: !input power_approximation_sensor
+  season_mode: !input season_mode
+  off_temp: !input off_temp
 
 triggers:
   - entity_id: !input temperature_sensor
-    below: !input min_temp
+    below: !input off_temp
     trigger: numeric_state
-    id: low_temperature_trigger
+    id: temp_below_trigger
+  - entity_id: !input temperature_sensor
+    above: !input off_temp
+    trigger: numeric_state
+    id: temp_above_trigger
   - entity_id: !input power_approximation_sensor
     above: 0
     trigger: numeric_state
+    id: power_insufficient_trigger
 conditions:
   - alias: The airco is not disabled
     condition: state
@@ -83,24 +101,32 @@ conditions:
   - alias: The airco is currently ON
     condition: template
     value_template: "{{ states(climate_entity) != 'off' }}"
-  - alias: >-
-      If triggered by insufficient power AND this is the airco in the coldest
-      active airco location AND no other airco is being turned off at the moment
-      (to prevent race conditions).
+  - alias: Season-aware temperature and power conditions
     condition: or
     conditions:
-      - condition: trigger
-        id: low_temperature_trigger
       - condition: and
         conditions:
           - condition: template
-            value_template: >-
-              {{ (states(power_approximation_sensor)|float(0) >= 0) }}
+            value_template: "{{ season_mode == 'cooling' }}"
+          - condition: trigger
+            id: temp_below_trigger
+      - condition: and
+        conditions:
+          - condition: template
+            value_template: "{{ season_mode == 'heating' }}"
+          - condition: trigger
+            id: temp_above_trigger
+      - condition: and
+        conditions:
+          - condition: trigger
+            id: power_insufficient_trigger
           - condition: template
             value_template: >-
-              {{ (states(temperature_sensor)|float(0) <=
-              states(lowest_temperature_sensor)|float(100))
-              }}
+              {% if season_mode == 'cooling' %}
+                {{ (states(temperature_sensor)|float(0)) <= (states(priority_active_temp_sensor)|float(100)) }}
+              {% else %}
+                {{ (states(temperature_sensor)|float(100)) >= (states(priority_active_temp_sensor)|float(0)) }}
+              {% endif %}
           - condition: state
             entity_id: !input airco_turning_off_boolean
             state: "off"
@@ -116,9 +142,9 @@ actions:
     data: {}
   - data:
       title: >
-        {{ climate_entity }} turned OFF
+        {{ climate_entity }} turned OFF ({{ season_mode }} mode)
       message: |
-        {{ climate_entity }} turned OFF.
+        {{ climate_entity }} turned OFF from {{ season_mode }} mode.
         Current temperature: {{ states(temperature_sensor) }}°C
         Total active aircos: {{ (states('sensor.active_aircos')|int) - 1 }}
         Power Approximation: {{ states(power_approximation_sensor) }}W
