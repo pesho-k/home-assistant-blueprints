@@ -71,6 +71,15 @@ blueprint:
         entity:
           domain: automation
           multiple: true
+    power_threshold:
+      name: Power Threshold
+      description: The power approximation value above which the airco should turn off (e.g., 0 for no surplus)
+      default: 0
+      selector:
+        number:
+          min: -50
+          max: 1000
+          step: 10
 
 variables:
   climate_entity: !input climate_entity
@@ -90,7 +99,7 @@ triggers:
     trigger: numeric_state
     id: temp_above_trigger
   - entity_id: !input power_approximation_sensor
-    above: 0
+    above: !input power_threshold
     trigger: numeric_state
     id: power_insufficient_trigger
 conditions:
