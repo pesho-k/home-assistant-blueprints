@@ -101,6 +101,7 @@ trigger:
   - platform: numeric_state
     entity_id: !input power_approximation_sensor
     below: !input required_power_surplus_sensor
+    id: power_surplus
 
 condition:
   - condition: state
@@ -112,8 +113,12 @@ condition:
         conditions:
           - condition: template
             value_template: "{{ season_mode == 'cooling' }}"
-          - condition: trigger
-            id: temp_above
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: temp_above
+              - condition: trigger
+                id: power_surplus
           - condition: numeric_state
             entity_id: !input temperature_sensor
             above: !input trigger_temp
@@ -121,8 +126,12 @@ condition:
         conditions:
           - condition: template
             value_template: "{{ season_mode == 'heating' }}"
-          - condition: trigger
-            id: temp_below
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: temp_below
+              - condition: trigger
+                id: power_surplus
           - condition: numeric_state
             entity_id: !input temperature_sensor
             below: !input trigger_temp
