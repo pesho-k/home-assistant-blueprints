@@ -88,6 +88,7 @@ variables:
   power_approximation_sensor: !input power_approximation_sensor
   season_mode: !input season_mode
   off_temp: !input off_temp
+  power_threshold: !input power_threshold
 
 triggers:
   - entity_id: !input temperature_sensor
