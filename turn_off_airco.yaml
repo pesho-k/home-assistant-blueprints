@@ -117,18 +117,18 @@ conditions:
         conditions:
           - condition: template
             value_template: "{{ season_mode == 'cooling' }}"
-          - condition: trigger
-            id: temp_below_trigger
+          - condition: template
+            value_template: "{{ (states(temperature_sensor)|float(0)) < off_temp }}"
       - condition: and
         conditions:
           - condition: template
             value_template: "{{ season_mode == 'heating' }}"
-          - condition: trigger
-            id: temp_above_trigger
+          - condition: template
+            value_template: "{{ (states(temperature_sensor)|float(0)) > off_temp }}"
       - condition: and
         conditions:
-          - condition: trigger
-            id: power_insufficient_trigger
+          - condition: template
+            value_template: "{{ (states(power_approximation_sensor)|float(0)) > (power_threshold|float(0)) }}"
           - condition: template
             value_template: >-
               {% if season_mode == 'cooling' %}
