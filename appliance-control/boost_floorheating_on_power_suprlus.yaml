@@ -1,0 +1,92 @@
+blueprint:
+  name: Boost WC Floor Heating Based on Power Surplus
+  description: >
+    Switches a Magnum thermostat climate entity to heat mode at a specified temperature for a set time period when the power surplus sensor is within a given kW range.
+  domain: automation
+  input:
+    magnum_climate:
+      name: Magnum Climate Entity
+      description: The Magnum thermostat climate entity to control
+      selector:
+        entity:
+          domain: climate
+    power_surplus_sensor:
+      name: Power Surplus Sensor
+      description: The sensor that measures power surplus (in kW)
+      selector:
+        entity:
+          domain: sensor
+    surplus_min_kw:
+      name: Minimum Surplus (kW)
+      description: The minimum power surplus required to activate heating
+      default: -250
+      selector:
+        number:
+          min: -1000
+          max: 50
+          step: 10
+    surplus_max_kw:
+      name: Maximum Surplus (kW)
+      description: The maximum power surplus allowed to activate heating
+      default: -150
+      selector:
+        number:
+          min: -900
+          max: 100
+          step: 10
+    target_temperature:
+      name: Target Temperature
+      description: The temperature to set the Magnum thermostat to
+      default: 23
+      selector:
+        number:
+          min: 15
+          max: 25
+          step: 0.5
+    off_temperature:
+      name: Off Temperature
+      description: The temperature to set the Magnum thermostat to when turning off
+      default: 15
+      selector:
+        number:
+          min: 5
+          max: 17
+          step: 0.5
+    heat_duration:
+      name: Heat Duration
+      description: The time period to keep the thermostat in heat mode
+      default: "00:30:00"
+      selector:
+        duration:
+          min: "00:10:00"
+          max: "02:00:00"
+
+trigger:
+  - platform: numeric_state
+    entity_id: !input power_surplus_sensor
+    above: !input surplus_min_kw
+    below: !input surplus_max_kw
+
+condition:
+  - condition: template
+    value_template: "{{ !input surplus_min_kw < !input surplus_max_kw }}"
+
+action:
+  - service: climate.set_hvac_mode
+    target:
+      entity_id: !input magnum_climate
+    data:
+      hvac_mode: heat
+  - service: climate.set_temperature
+    target:
+      entity_id: !input magnum_climate
+    data:
+      temperature: !input target_temperature
+  - delay: !input heat_duration
+  - service: climate.set_temperature
+    target:
+      entity_id: !input magnum_climate
+    data:
+      temperature: !input off_temperature
+
+mode: single
