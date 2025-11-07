@@ -59,6 +59,10 @@ blueprint:
       selector:
         duration: {}
 
+variables:
+  surplus_min_kw: !input surplus_min_kw
+  surplus_max_kw: !input surplus_max_kw
+
 trigger:
   - platform: numeric_state
     entity_id: !input power_surplus_sensor
@@ -67,7 +71,7 @@ trigger:
 
 condition:
   - condition: template
-    value_template: "{{ !input surplus_min_kw < !input surplus_max_kw }}"
+    value_template: "{{ surplus_min_kw | float(0) < surplus_max_kw | float(0) }}"
 
 action:
   - service: climate.set_hvac_mode
