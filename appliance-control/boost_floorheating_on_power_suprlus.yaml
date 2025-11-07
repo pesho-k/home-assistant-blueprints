@@ -19,7 +19,7 @@ blueprint:
     surplus_min_kw:
       name: Minimum Surplus (kW)
       description: The minimum power surplus required to activate heating
-      default: -250
+      default: -210
       selector:
         number:
           min: -1000
