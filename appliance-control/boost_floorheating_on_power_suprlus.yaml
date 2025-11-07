@@ -4,6 +4,13 @@ blueprint:
     Switches a Magnum thermostat climate entity to heat mode at a specified temperature for a set time period when the power surplus sensor is within a given kW range.
   domain: automation
   input:
+    airco_entities:
+      name: Airco Climate Entities
+      description: List of three airco climate entities to check before switching ON
+      selector:
+        entity:
+          domain: climate
+          multiple: true
     magnum_climate:
       name: Magnum Climate Entity
       description: The Magnum thermostat climate entity to control
@@ -74,21 +81,35 @@ condition:
     value_template: "{{ surplus_min_kw | float(0) < surplus_max_kw | float(0) }}"
 
 action:
-  - service: climate.set_hvac_mode
-    target:
-      entity_id: !input magnum_climate
-    data:
-      hvac_mode: heat
-  - service: climate.set_temperature
-    target:
-      entity_id: !input magnum_climate
-    data:
-      temperature: !input target_temperature
-  - delay: !input heat_duration
-  - service: climate.set_temperature
-    target:
-      entity_id: !input magnum_climate
-    data:
-      temperature: !input off_temperature
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: >
+              {% set aircos = !input airco_entities %}
+              {% set all_off = aircos | map('states') | select('equalto', 'off') | list | length == aircos | length %}
+              {{ all_off }}
+        sequence:
+          - service: climate.set_hvac_mode
+            target:
+              entity_id: !input magnum_climate
+            data:
+              hvac_mode: heat
+          - service: climate.set_temperature
+            target:
+              entity_id: !input magnum_climate
+            data:
+              temperature: !input target_temperature
+          - delay: !input heat_duration
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ state_attr(!input magnum_climate, 'temperature') | float(30) > !input off_temperature | float(0) }}
+        sequence:
+          - service: climate.set_temperature
+            target:
+              entity_id: !input magnum_climate
+            data:
+              temperature: !input off_temperature
 
 mode: single
