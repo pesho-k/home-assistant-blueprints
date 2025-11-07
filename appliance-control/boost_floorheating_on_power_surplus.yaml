@@ -71,6 +71,7 @@ variables:
   surplus_max_kw: !input surplus_max_kw
   magnum_climate_entity: !input magnum_climate
   off_temperature: !input off_temperature
+  airco_entities: !input airco_entities
 
 trigger:
   - platform: numeric_state
@@ -87,8 +88,7 @@ action:
       - conditions:
           - condition: template
             value_template: >
-              {% set aircos = !input airco_entities %}
-              {% set all_off = aircos | map('states') | select('equalto', 'off') | list | length == aircos | length %}
+              {% set all_off = airco_entities | map('states') | select('equalto', 'off') | list | length == airco_entities | length %}
               {{ all_off }}
         sequence:
           - service: climate.set_hvac_mode
@@ -102,16 +102,16 @@ action:
             data:
               temperature: !input target_temperature
           - delay: !input heat_duration
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: >
-              {{ state_attr(magnum_climate_entity, 'temperature') | float(0) > (off_temperature | float(0)) }}
-        sequence:
-          - service: climate.set_temperature
-            target:
-              entity_id: !input magnum_climate
-            data:
-              temperature: !input off_temperature
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: >
+                      {{ state_attr(magnum_climate_entity, 'temperature') | float(0) > (off_temperature | float(0)) }}
+                sequence:
+                  - service: climate.set_temperature
+                    target:
+                      entity_id: !input magnum_climate
+                    data:
+                      temperature: !input off_temperature
 
 mode: single
