@@ -55,7 +55,7 @@ blueprint:
     heat_duration:
       name: Heat Duration
       description: The time period to keep the thermostat in heat mode
-      default: "00:35:00"
+      default: "00:30:00"
       selector:
         duration: {}
 
