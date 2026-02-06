@@ -50,15 +50,6 @@ blueprint:
           min: 15
           max: 25
           step: 0.5
-    off_temperature:
-      name: Off Temperature
-      description: The temperature to set the Magnum thermostat to when turning off
-      default: 15
-      selector:
-        number:
-          min: 5
-          max: 17
-          step: 0.5
     heat_duration:
       name: Heat Duration
       description: The time period to keep the thermostat in heat mode
@@ -70,7 +61,6 @@ variables:
   surplus_min_kw: !input surplus_min_kw
   surplus_max_kw: !input surplus_max_kw
   magnum_climate_entity: !input magnum_climate
-  off_temperature: !input off_temperature
   airco_entities: !input airco_entities
   target_temperature: !input target_temperature
 
@@ -108,16 +98,10 @@ action:
             data:
               temperature: !input target_temperature
           - delay: !input heat_duration
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: >
-                      {{ state_attr(magnum_climate_entity, 'temperature') | float(0) > (off_temperature | float(0)) }}
-                sequence:
-                  - service: climate.set_temperature
-                    target:
-                      entity_id: !input magnum_climate
-                    data:
-                      temperature: !input off_temperature
+          - service: climate.set_hvac_mode
+            target:
+              entity_id: !input magnum_climate
+            data:
+              hvac_mode: auto
 
 mode: single
