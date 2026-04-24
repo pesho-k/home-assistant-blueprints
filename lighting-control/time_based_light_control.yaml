@@ -1,0 +1,329 @@
+blueprint:
+  name: Weekly Switch Scheduler (Morning & Evening - Explicit)
+  description: >
+    Turn a switch on at configurable morning and evening times for each day of the week,
+    each with its own duration in minutes.
+  domain: automation
+
+  input:
+    target_switch:
+      name: Target Switch
+      selector:
+        entity:
+          domain: switch
+
+    # Monday
+    mon_morning_time:
+      name: Monday Morning Time
+      default: "07:00:00"
+      selector: { time: {} }
+    mon_morning_duration:
+      name: Monday Morning Duration (minutes)
+      default: 10
+      selector: { number: { min: 0, max: 300, step: 1, unit_of_measurement: minutes } }
+
+    mon_evening_time:
+      name: Monday Evening Time
+      default: "19:45:00"
+      selector: { time: {} }
+    mon_evening_duration:
+      name: Monday Evening Duration (minutes)
+      default: 45
+      selector: { number: { min: 0, max: 300, step: 1, unit_of_measurement: minutes } }
+
+    # Tuesday
+    tue_morning_time:
+      name: Tuesday Morning Time
+      default: "07:00:00"
+      selector: { time: {} }
+    tue_morning_duration:
+      name: Tuesday Morning Duration (minutes)
+      default: 10
+      selector: { number: { min: 0, max: 300, step: 1, unit_of_measurement: minutes } }
+
+    tue_evening_time:
+      name: Tuesday Evening Time
+      default: "19:45:00"
+      selector: { time: {} }
+    tue_evening_duration:
+      name: Tuesday Evening Duration (minutes)
+      default: 45
+      selector: { number: { min: 0, max: 300, step: 1, unit_of_measurement: minutes } }
+
+    # Wednesday
+    wed_morning_time:
+      name: Wednesday Morning Time
+      default: "08:00:00"
+      selector: { time: {} }
+    wed_morning_duration:
+      name: Wednesday Morning Duration (minutes)
+      default: 10
+      selector: { number: { min: 0, max: 300, step: 1, unit_of_measurement: minutes } }
+
+    wed_evening_time:
+      name: Wednesday Evening Time
+      default: "19:45:00"
+      selector: { time: {} }
+    wed_evening_duration:
+      name: Wednesday Evening Duration (minutes)
+      default: 45
+      selector: { number: { min: 0, max: 300, step: 1, unit_of_measurement: minutes } }
+
+    # Thursday
+    thu_morning_time:
+      name: Thursday Morning Time
+      default: "07:00:00"
+      selector: { time: {} }
+    thu_morning_duration:
+      name: Thursday Morning Duration (minutes)
+      default: 10
+      selector: { number: { min: 0, max: 300, step: 1, unit_of_measurement: minutes } }
+
+    thu_evening_time:
+      name: Thursday Evening Time
+      default: "19:45:00"
+      selector: { time: {} }
+    thu_evening_duration:
+      name: Thursday Evening Duration (minutes)
+      default: 45
+      selector: { number: { min: 0, max: 300, step: 1, unit_of_measurement: minutes } }
+
+    # Friday
+    fri_morning_time:
+      name: Friday Morning Time
+      default: "07:00:00"
+      selector: { time: {} }
+    fri_morning_duration:
+      name: Friday Morning Duration (minutes)
+      default: 10
+      selector: { number: { min: 0, max: 300, step: 1, unit_of_measurement: minutes } }
+
+    fri_evening_time:
+      name: Friday Evening Time
+      default: "19:45:00"
+      selector: { time: {} }
+    fri_evening_duration:
+      name: Friday Evening Duration (minutes)
+      default: 45
+      selector: { number: { min: 0, max: 300, step: 1, unit_of_measurement: minutes } }
+
+    # Saturday
+    sat_morning_time:
+      name: Saturday Morning Time
+      default: "08:00:00"
+      selector: { time: {} }
+    sat_morning_duration:
+      name: Saturday Morning Duration (minutes)
+      default: 10
+      selector: { number: { min: 0, max: 300, step: 1, unit_of_measurement: minutes } }
+
+    sat_evening_time:
+      name: Saturday Evening Time
+      default: "19:45:00"
+      selector: { time: {} }
+    sat_evening_duration:
+      name: Saturday Evening Duration (minutes)
+      default: 45
+      selector: { number: { min: 0, max: 300, step: 1, unit_of_measurement: minutes } }
+
+    # Sunday
+    sun_morning_time:
+      name: Sunday Morning Time
+      default: "08:00:00"
+      selector: { time: {} }
+    sun_morning_duration:
+      name: Sunday Morning Duration (minutes)
+      default: 10
+      selector: { number: { min: 0, max: 300, step: 1, unit_of_measurement: minutes } }
+
+    sun_evening_time:
+      name: Sunday Evening Time
+      default: "19:45:00"
+      selector: { time: {} }
+    sun_evening_duration:
+      name: Sunday Evening Duration (minutes)
+      default: 45
+      selector: { number: { min: 0, max: 300, step: 1, unit_of_measurement: minutes } }
+
+mode: restart
+
+trigger:
+  # Monday
+  - platform: time
+    at: !input mon_morning_time
+    id: mon_morning
+  - platform: time
+    at: !input mon_evening_time
+    id: mon_evening
+
+  # Tuesday
+  - platform: time
+    at: !input tue_morning_time
+    id: tue_morning
+  - platform: time
+    at: !input tue_evening_time
+    id: tue_evening
+
+  # Wednesday
+  - platform: time
+    at: !input wed_morning_time
+    id: wed_morning
+  - platform: time
+    at: !input wed_evening_time
+    id: wed_evening
+
+  # Thursday
+  - platform: time
+    at: !input thu_morning_time
+    id: thu_morning
+  - platform: time
+    at: !input thu_evening_time
+    id: thu_evening
+
+  # Friday
+  - platform: time
+    at: !input fri_morning_time
+    id: fri_morning
+  - platform: time
+    at: !input fri_evening_time
+    id: fri_evening
+
+  # Saturday
+  - platform: time
+    at: !input sat_morning_time
+    id: sat_morning
+  - platform: time
+    at: !input sat_evening_time
+    id: sat_evening
+
+  # Sunday
+  - platform: time
+    at: !input sun_morning_time
+    id: sun_morning
+  - platform: time
+    at: !input sun_evening_time
+    id: sun_evening
+
+action:
+  - choose:
+
+      # Monday
+      - conditions: "{{ trigger.id == 'mon_morning' and (int(inputs['mon_morning_duration']) > 0) }}"
+        sequence:
+          - service: switch.turn_on
+            target: { entity_id: !input target_switch }
+          - delay: { minutes: !input mon_morning_duration }
+          - service: switch.turn_off
+            target: { entity_id: !input target_switch }
+
+      - conditions: "{{ trigger.id == 'mon_evening' and (int(inputs['mon_evening_duration']) > 0) }}"
+        sequence:
+          - service: switch.turn_on
+            target: { entity_id: !input target_switch }
+          - delay: { minutes: !input mon_evening_duration }
+          - service: switch.turn_off
+            target: { entity_id: !input target_switch }
+
+      # Tuesday
+      - conditions: "{{ trigger.id == 'tue_morning' and (int(inputs['tue_morning_duration']) > 0) }}"
+        sequence:
+          - service: switch.turn_on
+            target: { entity_id: !input target_switch }
+          - delay: { minutes: !input tue_morning_duration }
+          - service: switch.turn_off
+            target: { entity_id: !input target_switch }
+
+      - conditions: "{{ trigger.id == 'tue_evening' and (int(inputs['tue_evening_duration']) > 0) }}"
+        sequence:
+          - service: switch.turn_on
+            target: { entity_id: !input target_switch }
+          - delay: { minutes: !input tue_evening_duration }
+          - service: switch.turn_off
+            target: { entity_id: !input target_switch }
+
+      # Wednesday
+      - conditions: "{{ trigger.id == 'wed_morning' and (int(inputs['wed_morning_duration']) > 0) }}"
+        sequence:
+          - service: switch.turn_on
+            target: { entity_id: !input target_switch }
+          - delay: { minutes: !input wed_morning_duration }
+          - service: switch.turn_off
+            target: { entity_id: !input target_switch }
+
+      - conditions: "{{ trigger.id == 'wed_evening' and (int(inputs['wed_evening_duration']) > 0) }}"
+        sequence:
+          - service: switch.turn_on
+            target: { entity_id: !input target_switch }
+          - delay: { minutes: !input wed_evening_duration }
+          - service: switch.turn_off
+            target: { entity_id: !input target_switch }
+
+      # Thursday
+      - conditions: "{{ trigger.id == 'thu_morning' and (int(inputs['thu_morning_duration']) > 0) }}"
+        sequence:
+          - service: switch.turn_on
+            target: { entity_id: !input target_switch }
+          - delay: { minutes: !input thu_morning_duration }
+          - service: switch.turn_off
+            target: { entity_id: !input target_switch }
+
+      - conditions: "{{ trigger.id == 'thu_evening' and (int(inputs['thu_evening_duration']) > 0) }}"
+        sequence:
+          - service: switch.turn_on
+            target: { entity_id: !input target_switch }
+          - delay: { minutes: !input thu_evening_duration }
+          - service: switch.turn_off
+            target: { entity_id: !input target_switch }
+
+      # Friday
+      - conditions: "{{ trigger.id == 'fri_morning' and (int(inputs['fri_morning_duration']) > 0) }}"
+        sequence:
+          - service: switch.turn_on
+            target: { entity_id: !input target_switch }
+          - delay: { minutes: !input fri_morning_duration }
+          - service: switch.turn_off
+            target: { entity_id: !input target_switch }
+
+      - conditions: "{{ trigger.id == 'fri_evening' and (int(inputs['fri_evening_duration']) > 0) }}"
+        sequence:
+          - service: switch.turn_on
+            target: { entity_id: !input target_switch }
+          - delay: { minutes: !input fri_evening_duration }
+          - service: switch.turn_off
+            target: { entity_id: !input target_switch }
+
+      # Saturday
+      - conditions: "{{ trigger.id == 'sat_morning' and (int(inputs['sat_morning_duration']) > 0) }}"
+        sequence:
+          - service: switch.turn_on
+            target: { entity_id: !input target_switch }
+          - delay: { minutes: !input sat_morning_duration }
+          - service: switch.turn_off
+            target: { entity_id: !input target_switch }
+
+      - conditions: "{{ trigger.id == 'sat_evening' and (int(inputs['sat_evening_duration']) > 0) }}"
+        sequence:
+          - service: switch.turn_on
+            target: { entity_id: !input target_switch }
+          - delay: { minutes: !input sat_evening_duration }
+          - service: switch.turn_off
+            target: { entity_id: !input target_switch }
+
+      # Sunday
+      - conditions: "{{ trigger.id == 'sun_morning' and (int(inputs['sun_morning_duration']) > 0) }}"
+        sequence:
+          - service: switch.turn_on
+            target: { entity_id: !input target_switch }
+          - delay: { minutes: !input sun_morning_duration }
+          - service: switch.turn_off
+            target: { entity_id: !input target_switch }
+
+      - conditions: "{{ trigger.id == 'sun_evening' and (int(inputs['sun_evening_duration']) > 0) }}"
+        sequence:
+          - service: switch.turn_on
+            target: { entity_id: !input target_switch }
+          - delay: { minutes: !input sun_evening_duration }
+          - service: switch.turn_off
+            target: { entity_id: !input target_switch }
+
+    default: []
