@@ -56,15 +56,6 @@ blueprint:
       default: "00:30:00"
       selector:
         duration: {}
-    restore_mode:
-      name: Restore Mode
-      description: The HVAC mode to set after the heat duration ends
-      default: auto
-      selector:
-        select:
-          options:
-            - auto
-            - "off"
 
 variables:
   surplus_min_kw: !input surplus_min_kw
@@ -72,7 +63,6 @@ variables:
   magnum_climate_entity: !input magnum_climate
   airco_entities: !input airco_entities
   target_temperature: !input target_temperature
-  restore_mode: !input restore_mode
 
 trigger:
   - platform: numeric_state
@@ -112,6 +102,6 @@ action:
             target:
               entity_id: !input magnum_climate
             data:
-              hvac_mode: "{{ restore_mode }}"
+              hvac_mode: auto
 
 mode: single
