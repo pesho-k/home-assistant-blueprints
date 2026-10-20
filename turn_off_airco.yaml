@@ -80,6 +80,12 @@ blueprint:
           min: -50
           max: 1000
           step: 10
+    notify_entity:
+      name: Notification Entity
+      description: Notify entity used to send the status email (e.g. the SMTP notify entity)
+      selector:
+        entity:
+          domain: notify
 
 variables:
   climate_entity: !input climate_entity
@@ -150,7 +156,10 @@ actions:
       entity_id: !input climate_entity
     action: climate.turn_off
     data: {}
-  - data:
+  - action: notify.send_message
+    target:
+      entity_id: !input notify_entity
+    data:
       title: >
         {{ climate_entity }} turned OFF ({{ season_mode }} mode)
       message: |
@@ -158,8 +167,6 @@ actions:
         Current temperature: {{ states(temperature_sensor) }}°C
         Total active aircos: {{ (states('sensor.active_aircos')|int) - 1 }}
         Power Approximation: {{ states(power_approximation_sensor) }}W
-    action: notify.email_gmail
-    metadata: {}
   - delay: "00:02:30"
   - target:
       entity_id: !input airco_turning_off_boolean

@@ -78,6 +78,12 @@ blueprint:
       selector:
         entity:
           domain: sensor
+    notify_entity:
+      name: Notification Entity
+      description: Notify entity used to send the status email (e.g. the SMTP notify entity)
+      selector:
+        entity:
+          domain: notify
 
 variables:
   temperature_sensor: !input temperature_sensor
@@ -170,8 +176,9 @@ action:
         {% else %}
           cool
         {% endif %}
-  - service: notify.email_gmail
-    metadata: {}
+  - action: notify.send_message
+    target:
+      entity_id: !input notify_entity
     data:
       title: >
         {{ climate_entity }} turned ON ({{ season_mode }} mode)
