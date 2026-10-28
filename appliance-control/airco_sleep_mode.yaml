@@ -1,0 +1,65 @@
+blueprint:
+  name: Airco Sleep Mode
+  description: >
+    When the sleep boolean turns on, the airco automations for the room are disabled and the airco
+    is turned off. When it turns off again, the airco automations are enabled again.
+  domain: automation
+  input:
+    sleep_boolean:
+      name: Sleep Boolean
+      description: Input boolean that is on while people sleep in the room
+      selector:
+        entity:
+          domain: input_boolean
+    airco_entity:
+      name: Airco Entity
+      description: The airco to turn off when the sleep boolean turns on
+      selector:
+        entity:
+          domain: climate
+    disable_airco_boolean:
+      name: Disable Airco Automation Boolean
+      description: The input_boolean that disables the airco automations while it is on
+      selector:
+        entity:
+          domain: input_boolean
+
+variables:
+  airco_entity: !input airco_entity
+
+triggers:
+  - trigger: state
+    entity_id: !input sleep_boolean
+    to: "on"
+    id: sleep
+  - trigger: state
+    entity_id: !input sleep_boolean
+    to: "off"
+    id: wake
+
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: sleep
+        sequence:
+          # Disable first, so the airco automations cannot start it again in between
+          - action: input_boolean.turn_on
+            target:
+              entity_id: !input disable_airco_boolean
+          - if:
+              - condition: template
+                value_template: "{{ not is_state(airco_entity, 'off') }}"
+            then:
+              - action: climate.turn_off
+                target:
+                  entity_id: !input airco_entity
+      - conditions:
+          - condition: trigger
+            id: wake
+        sequence:
+          - action: input_boolean.turn_off
+            target:
+              entity_id: !input disable_airco_boolean
+
+mode: queued
