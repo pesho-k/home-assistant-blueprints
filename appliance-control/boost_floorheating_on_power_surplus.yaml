@@ -2,6 +2,7 @@ blueprint:
   name: Boost WC Floor Heating Based on Power Surplus
   description: >
     Switches a Magnum thermostat climate entity to heat mode at a specified temperature for a set time period when the power surplus sensor is within a given kW range.
+    If Home Assistant restarts during a boost, the thermostat is set back to auto on startup.
   domain: automation
   input:
     airco_entities:
@@ -69,6 +70,11 @@ trigger:
     entity_id: !input power_surplus_sensor
     above: !input surplus_min_kw
     below: !input surplus_max_kw
+    id: surplus_in_range
+  # A restart cancels the heat_duration delay, which would leave the thermostat in heat mode
+  - platform: homeassistant
+    event: start
+    id: ha_start
 
 condition:
   - condition: template
@@ -77,6 +83,19 @@ condition:
 action:
   - choose:
       - conditions:
+          - condition: trigger
+            id: ha_start
+          - condition: template
+            value_template: "{{ is_state(magnum_climate_entity, 'heat') }}"
+        sequence:
+          - service: climate.set_hvac_mode
+            target:
+              entity_id: !input magnum_climate
+            data:
+              hvac_mode: auto
+      - conditions:
+          - condition: trigger
+            id: surplus_in_range
           - condition: template
             value_template: >
               {% set all_off = airco_entities | map('states') | select('equalto', 'off') | list | length == airco_entities | length %}
