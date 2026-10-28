@@ -2,7 +2,7 @@ blueprint:
   name: Turn ON Airco (Season-Aware)
   description: >
     Turns on an airco for heating (winter) when cold enough or cooling (summer) when warm enough, with sufficient solar power.
-    Use a Season Helper to switch all aircos between heating and cooling at once.
+    The season comes from a Season Helper, so all aircos switch between heating and cooling at once.
   domain: automation
   input:
     climate_entity:
@@ -18,25 +18,13 @@ blueprint:
         entity:
           domain: sensor
     season_entity:
-      name: Season Helper (optional)
+      name: Season Helper
       description: >
-        An input_select with the options "heating" and "cooling" that switches all aircos
-        between seasons at once. When set, it overrides Season Mode.
-      default: ""
+        An input_select with the options "heating" and "cooling". Switching it changes the season
+        for all aircos that use it.
       selector:
         entity:
           domain: input_select
-    season_mode:
-      name: Season Mode
-      description: Heating (winter) or cooling (summer); only used when no Season Helper is set
-      default: cooling
-      selector:
-        select:
-          options:
-            - label: "Heating (Winter)"
-              value: "heating"
-            - label: "Cooling (Summer)"
-              value: "cooling"
     heating_trigger_temp:
       name: Heating - Turn On Below
       description: In the heating season the airco turns on when the room is colder than this
@@ -116,8 +104,7 @@ variables:
   power_approximation_sensor: !input power_approximation_sensor
   required_power_surplus_sensor: !input required_power_surplus_sensor
   season_entity: !input season_entity
-  season_mode: !input season_mode
-  season: "{{ (states(season_entity) if season_entity else season_mode) | lower }}"
+  season: "{{ states(season_entity) | lower }}"
   airco_turning_on_boolean: !input airco_turning_on_boolean
 
 trigger:
