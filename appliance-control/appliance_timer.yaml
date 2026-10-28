@@ -1,0 +1,151 @@
+blueprint:
+  name: Appliance Timer
+  description: >
+    Keeps an appliance's on/off boolean, minutes input_number and timer in sync, in one automation.
+    Setting the minutes starts the timer and turns the appliance on; setting 0 minutes or turning the
+    appliance off stops the timer; the appliance turns off when the timer finishes.
+    Turning the appliance on without minutes set uses the default duration.
+  domain: automation
+  input:
+    appliance_on_boolean:
+      name: Appliance On Boolean
+      description: The input_boolean that represents the appliance's on/off state
+      selector:
+        entity:
+          domain: input_boolean
+    appliance_timer:
+      name: Appliance Timer
+      description: The timer entity for the appliance
+      selector:
+        entity:
+          domain: timer
+    appliance_timer_minutes:
+      name: Appliance Timer Minutes
+      description: The input_number entity for the timer's minutes
+      selector:
+        entity:
+          domain: input_number
+    default_minutes:
+      name: Default Duration
+      description: Timer duration when the appliance is turned on without minutes set
+      default: 45
+      selector:
+        number:
+          min: 1
+          max: 240
+          step: 1
+          unit_of_measurement: min
+
+variables:
+  appliance_on_boolean: !input appliance_on_boolean
+  appliance_timer: !input appliance_timer
+  appliance_timer_minutes: !input appliance_timer_minutes
+  default_minutes: !input default_minutes
+
+# Only a change of the minutes starts or stops the timer. The other triggers change the
+# minutes or the boolean, and the runs they cause (queued, in order) do the rest.
+triggers:
+  - trigger: state
+    entity_id: !input appliance_timer_minutes
+    to: ~
+    id: minutes_changed
+  - trigger: state
+    entity_id: !input appliance_on_boolean
+    to: "on"
+    id: turned_on
+  - trigger: state
+    entity_id: !input appliance_on_boolean
+    to: "off"
+    id: turned_off
+  - trigger: event
+    event_type: timer.finished
+    event_data:
+      entity_id: !input appliance_timer
+    id: timer_finished
+  # A timer that ran out while Home Assistant was down finishes before automations start
+  - trigger: homeassistant
+    event: start
+    id: ha_start
+
+actions:
+  - variables:
+      minutes: "{{ states(appliance_timer_minutes) | int(0) }}"
+  - choose:
+      - alias: Minutes set - (re)start the timer and turn the appliance on
+        conditions:
+          - condition: trigger
+            id: minutes_changed
+          - condition: template
+            value_template: "{{ minutes > 0 }}"
+        sequence:
+          - action: timer.start
+            target:
+              entity_id: !input appliance_timer
+            data:
+              duration: "{{ '%02d:%02d:00' | format(minutes // 60, minutes % 60) }}"
+          - action: input_boolean.turn_on
+            target:
+              entity_id: !input appliance_on_boolean
+      - alias: Minutes cleared - stop the timer and turn the appliance off
+        conditions:
+          - condition: trigger
+            id: minutes_changed
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ not is_state(appliance_timer, 'idle') }}"
+            then:
+              - action: timer.finish
+                target:
+                  entity_id: !input appliance_timer
+          - action: input_boolean.turn_off
+            target:
+              entity_id: !input appliance_on_boolean
+      - alias: Turned on without minutes - use the default duration
+        conditions:
+          - condition: trigger
+            id: turned_on
+          - condition: template
+            value_template: "{{ minutes < 1 }}"
+        sequence:
+          - action: input_number.set_value
+            target:
+              entity_id: !input appliance_timer_minutes
+            data:
+              value: "{{ default_minutes }}"
+      - alias: Turned off - stop the timer and clear the minutes
+        conditions:
+          - condition: trigger
+            id: turned_off
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ not is_state(appliance_timer, 'idle') }}"
+            then:
+              - action: timer.finish
+                target:
+                  entity_id: !input appliance_timer
+          - if:
+              - condition: template
+                value_template: "{{ minutes > 0 }}"
+            then:
+              - action: input_number.set_value
+                target:
+                  entity_id: !input appliance_timer_minutes
+                data:
+                  value: 0
+      - alias: Timer finished (or idle after a restart) - turn the appliance off
+        conditions:
+          - condition: trigger
+            id:
+              - timer_finished
+              - ha_start
+          - condition: template
+            value_template: "{{ is_state(appliance_on_boolean, 'on') and is_state(appliance_timer, 'idle') }}"
+        sequence:
+          - action: input_boolean.turn_off
+            target:
+              entity_id: !input appliance_on_boolean
+
+mode: queued
+max: 10
