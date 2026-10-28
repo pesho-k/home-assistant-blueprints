@@ -68,6 +68,7 @@ blueprint:
     related_airco_automations:
       name: Related Airco Automations
       description: List of related automation entity_ids
+      default: []
       selector:
         entity:
           domain: automation
@@ -94,6 +95,7 @@ variables:
   required_power_surplus_sensor: !input required_power_surplus_sensor
   season_mode: !input season_mode
   trigger_temp: !input trigger_temp
+  airco_turning_on_boolean: !input airco_turning_on_boolean
 
 trigger:
   - platform: numeric_state
@@ -108,23 +110,23 @@ trigger:
     entity_id: !input power_approximation_sensor
     below: !input required_power_surplus_sensor
     id: power_surplus
+  # Thresholds only fire when crossed, so re-check when the airco is enabled again (e.g. after sleep)
+  - platform: state
+    entity_id: !input disable_switch
+    to: "off"
+    id: re_enabled
 
 condition:
   - condition: state
     entity_id: !input disable_switch
     state: "off"
-  - condition: or
+  - alias: The room needs heating or cooling
+    condition: or
     conditions:
       - condition: and
         conditions:
           - condition: template
             value_template: "{{ season_mode == 'cooling' }}"
-          - condition: or
-            conditions:
-              - condition: trigger
-                id: temp_above
-              - condition: trigger
-                id: power_surplus
           - condition: numeric_state
             entity_id: !input temperature_sensor
             above: !input trigger_temp
@@ -132,12 +134,6 @@ condition:
         conditions:
           - condition: template
             value_template: "{{ season_mode == 'heating' }}"
-          - condition: or
-            conditions:
-              - condition: trigger
-                id: temp_below
-              - condition: trigger
-                id: power_surplus
           - condition: numeric_state
             entity_id: !input temperature_sensor
             below: !input trigger_temp
@@ -154,18 +150,18 @@ condition:
       {% else %}
         {{ (states(temperature_sensor)|float(100)) <= (states(priority_temp_sensor)|float(0)) }}
       {% endif %}
-  - condition: state
-    entity_id: !input airco_turning_on_boolean
-    state: "off"
+  - alias: No other airco is being turned on (a lock older than 3 minutes is stale, e.g. after a restart)
+    condition: template
+    value_template: >
+      {{ is_state(airco_turning_on_boolean, 'off')
+         or (now() - states[airco_turning_on_boolean].last_changed).total_seconds() > 180 }}
 
 action:
   - service: input_boolean.turn_on
     target:
       entity_id: !input airco_turning_on_boolean
   - delay: "00:00:05"
-  - service: climate.turn_on
-    target:
-      entity_id: !input climate_entity
+  # set_hvac_mode also turns the airco on; a separate climate.turn_on would send an extra IR command
   - service: climate.set_hvac_mode
     target:
       entity_id: !input climate_entity
