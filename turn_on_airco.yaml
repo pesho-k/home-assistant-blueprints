@@ -1,6 +1,8 @@
 blueprint:
   name: Turn ON Airco (Season-Aware)
-  description: Turns on an airco for heating (winter) when cold enough or cooling (summer) when warm enough, with sufficient solar power
+  description: >
+    Turns on an airco for heating (winter) when cold enough or cooling (summer) when warm enough, with sufficient solar power.
+    Use a Season Helper to switch all aircos between heating and cooling at once.
   domain: automation
   input:
     climate_entity:
@@ -15,9 +17,18 @@ blueprint:
       selector:
         entity:
           domain: sensor
+    season_entity:
+      name: Season Helper (optional)
+      description: >
+        An input_select with the options "heating" and "cooling" that switches all aircos
+        between seasons at once. When set, it overrides Season Mode.
+      default: ""
+      selector:
+        entity:
+          domain: input_select
     season_mode:
       name: Season Mode
-      description: Select heating (winter) or cooling (summer) mode
+      description: Heating (winter) or cooling (summer); only used when no Season Helper is set
       default: cooling
       selector:
         select:
@@ -26,15 +37,26 @@ blueprint:
               value: "heating"
             - label: "Cooling (Summer)"
               value: "cooling"
-    trigger_temp:
-      name: Trigger Temperature
-      description: For cooling mode - temperature above which airco turns on. For heating mode - temperature below which airco turns on
+    heating_trigger_temp:
+      name: Heating - Turn On Below
+      description: In the heating season the airco turns on when the room is colder than this
+      default: 20
+      selector:
+        number:
+          min: 10
+          max: 25
+          step: 0.5
+          unit_of_measurement: "°C"
+    cooling_trigger_temp:
+      name: Cooling - Turn On Above
+      description: In the cooling season the airco turns on when the room is warmer than this
       default: 21
       selector:
         number:
-          min: 15
-          max: 25
+          min: 18
+          max: 30
           step: 0.5
+          unit_of_measurement: "°C"
     required_power_surplus_sensor:
       name: Required Power Surplus Sensor
       description: Sensor with required power surplus for airco
@@ -93,18 +115,19 @@ variables:
   active_aircos_sensor: !input active_aircos_sensor
   power_approximation_sensor: !input power_approximation_sensor
   required_power_surplus_sensor: !input required_power_surplus_sensor
+  season_entity: !input season_entity
   season_mode: !input season_mode
-  trigger_temp: !input trigger_temp
+  season: "{{ (states(season_entity) if season_entity else season_mode) | lower }}"
   airco_turning_on_boolean: !input airco_turning_on_boolean
 
 trigger:
   - platform: numeric_state
     entity_id: !input temperature_sensor
-    above: !input trigger_temp
+    above: !input cooling_trigger_temp
     id: temp_above
   - platform: numeric_state
     entity_id: !input temperature_sensor
-    below: !input trigger_temp
+    below: !input heating_trigger_temp
     id: temp_below
   - platform: numeric_state
     entity_id: !input power_approximation_sensor
@@ -126,17 +149,17 @@ condition:
       - condition: and
         conditions:
           - condition: template
-            value_template: "{{ season_mode == 'cooling' }}"
+            value_template: "{{ season == 'cooling' }}"
           - condition: numeric_state
             entity_id: !input temperature_sensor
-            above: !input trigger_temp
+            above: !input cooling_trigger_temp
       - condition: and
         conditions:
           - condition: template
-            value_template: "{{ season_mode == 'heating' }}"
+            value_template: "{{ season == 'heating' }}"
           - condition: numeric_state
             entity_id: !input temperature_sensor
-            below: !input trigger_temp
+            below: !input heating_trigger_temp
   - condition: numeric_state
     entity_id: !input power_approximation_sensor
     below: !input required_power_surplus_sensor
@@ -145,7 +168,7 @@ condition:
     state: "off"
   - condition: template
     value_template: >
-      {% if season_mode == 'cooling' %}
+      {% if season == 'cooling' %}
         {{ (states(temperature_sensor)|float(0)) >= (states(priority_temp_sensor)|float(100)) }}
       {% else %}
         {{ (states(temperature_sensor)|float(100)) <= (states(priority_temp_sensor)|float(0)) }}
@@ -167,7 +190,7 @@ action:
       entity_id: !input climate_entity
     data:
       hvac_mode: >
-        {% if season_mode == 'heating' %}
+        {% if season == 'heating' %}
           heat
         {% else %}
           cool
@@ -177,9 +200,9 @@ action:
       entity_id: !input notify_entity
     data:
       title: >
-        {{ climate_entity }} turned ON ({{ season_mode }} mode)
+        {{ climate_entity }} turned ON ({{ season }} mode)
       message: |
-        {{ climate_entity }} turned ON in {{ season_mode }} mode.
+        {{ climate_entity }} turned ON in {{ season }} mode.
         Current temperature: {{ states(temperature_sensor) }}°C
         Total active aircos: {{ (states(active_aircos_sensor)|int) + 1 }}
         Power Approximation: {{ states(power_approximation_sensor) }}W
