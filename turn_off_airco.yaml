@@ -67,6 +67,7 @@ blueprint:
     related_airco_automations:
       name: Related Airco Automations
       description: List of related automation entity_ids
+      default: []
       selector:
         entity:
           domain: automation
@@ -95,6 +96,7 @@ variables:
   season_mode: !input season_mode
   off_temp: !input off_temp
   power_threshold: !input power_threshold
+  airco_turning_off_boolean: !input airco_turning_off_boolean
 
 triggers:
   - entity_id: !input temperature_sensor
@@ -143,9 +145,11 @@ conditions:
               {% else %}
                 {{ (states(temperature_sensor)|float(100)) >= (states(priority_active_temp_sensor)|float(0)) }}
               {% endif %}
-          - condition: state
-            entity_id: !input airco_turning_off_boolean
-            state: "off"
+          - alias: No other airco is being turned off (a lock older than 3 minutes is stale, e.g. after a restart)
+            condition: template
+            value_template: >
+              {{ is_state(airco_turning_off_boolean, 'off')
+                 or (now() - states[airco_turning_off_boolean].last_changed).total_seconds() > 180 }}
 actions:
   - target:
       entity_id: !input airco_turning_off_boolean
