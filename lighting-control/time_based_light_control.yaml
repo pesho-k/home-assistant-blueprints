@@ -3,6 +3,7 @@ blueprint:
   description: >
     Turn a switch on at configurable morning and evening times for each day of the week,
     each with its own duration in minutes.
+    After a Home Assistant restart the switch is put back in its scheduled state.
   domain: automation
 
   input:
@@ -163,7 +164,23 @@ variables:
     sat_evening: !input sat_evening_duration
     sun_morning: !input sun_morning_duration
     sun_evening: !input sun_evening_duration
-  duration: "{{ duration_map[trigger.id] | int(0) }}"
+  time_map:
+    mon_morning: !input mon_morning_time
+    mon_evening: !input mon_evening_time
+    tue_morning: !input tue_morning_time
+    tue_evening: !input tue_evening_time
+    wed_morning: !input wed_morning_time
+    wed_evening: !input wed_evening_time
+    thu_morning: !input thu_morning_time
+    thu_evening: !input thu_evening_time
+    fri_morning: !input fri_morning_time
+    fri_evening: !input fri_evening_time
+    sat_morning: !input sat_morning_time
+    sat_evening: !input sat_evening_time
+    sun_morning: !input sun_morning_time
+    sun_evening: !input sun_evening_time
+  duration: "{{ duration_map.get(trigger.id, 0) | int(0) }}"
+  today: "{{ ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'][now().weekday()] }}"
 
 trigger:
   - platform: time
@@ -208,15 +225,53 @@ trigger:
   - platform: time
     at: !input sun_evening_time
     id: sun_evening
+  - platform: homeassistant
+    event: start
+    id: ha_start
+
+# Time triggers fire every day, so only the trigger for today's weekday may run.
+# This must be a top-level condition: with mode restart, a non-matching trigger at the
+# same time would otherwise cancel the matching run and leave the switch on.
+condition:
+  - condition: template
+    value_template: "{{ trigger.id == 'ha_start' or (trigger.id[:3] == today and duration > 0) }}"
 
 action:
-  - condition: template
-    value_template: "{{ duration > 0 }}"
-  - service: switch.turn_on
-    target:
-      entity_id: !input target_switch
-  - delay:
-      minutes: "{{ duration }}"
-  - service: switch.turn_off
-    target:
-      entity_id: !input target_switch
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: ha_start
+        sequence:
+          - variables:
+              window_end: >
+                {% set ns = namespace(end='') %}
+                {% for part in ['morning', 'evening'] %}
+                  {% set key = today ~ '_' ~ part %}
+                  {% set start = today_at(time_map[key]) %}
+                  {% set end = start + timedelta(minutes=duration_map[key] | int(0)) %}
+                  {% if start <= now() and now() < end %}{% set ns.end = end.isoformat() %}{% endif %}
+                {% endfor %}
+                {{ ns.end }}
+          - if: "{{ (window_end or '') | length > 0 }}"
+            then:
+              - service: switch.turn_on
+                target:
+                  entity_id: !input target_switch
+              - delay:
+                  seconds: "{{ (as_datetime(window_end) - now()).total_seconds() | int }}"
+              - service: switch.turn_off
+                target:
+                  entity_id: !input target_switch
+            else:
+              - service: switch.turn_off
+                target:
+                  entity_id: !input target_switch
+    default:
+      - service: switch.turn_on
+        target:
+          entity_id: !input target_switch
+      - delay:
+          minutes: "{{ duration }}"
+      - service: switch.turn_off
+        target:
+          entity_id: !input target_switch
