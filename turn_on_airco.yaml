@@ -3,6 +3,8 @@ blueprint:
   description: >
     Turns on an airco for heating (winter) when cold enough or cooling (summer) when warm enough, with sufficient solar power.
     The season comes from a Season Helper, so all aircos switch between heating and cooling at once.
+    Optionally sets the airco's own target temperature per season, and waits a settle time after each start
+    so the next airco only starts on surplus that is really left.
   domain: automation
   input:
     climate_entity:
@@ -45,6 +47,34 @@ blueprint:
           max: 30
           step: 0.5
           unit_of_measurement: "°C"
+    heating_target_temp:
+      name: Heating - Airco Target
+      description: >
+        Target temperature sent to the airco when it starts heating. The airco measures it at the indoor
+        unit, high on the wall, so set it a few degrees above the room temperature you want; the Turn OFF
+        automation still stops it on the room sensor. 0 keeps the airco's current target.
+        Use a value the airco accepts, or it will not start.
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 30
+          step: 1
+          mode: box
+          unit_of_measurement: "°C"
+    cooling_target_temp:
+      name: Cooling - Airco Target
+      description: >
+        Target temperature sent to the airco when it starts cooling. 0 keeps the airco's current target.
+        IR integrations usually keep one target for all modes, so when you set a heating target, set this too.
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 30
+          step: 1
+          mode: box
+          unit_of_measurement: "°C"
     required_power_surplus_sensor:
       name: Required Power Surplus Sensor
       description: Sensor with required power surplus for airco
@@ -75,6 +105,19 @@ blueprint:
       selector:
         entity:
           domain: input_boolean
+    settle_time:
+      name: Settle Time
+      description: >
+        How long the turning-on lock is held after an airco starts, before another airco may start.
+        Inverter aircos can take several minutes before their power draw shows on the meter, and a second
+        airco should not start on surplus the first one is about to use.
+      default: 7
+      selector:
+        number:
+          min: 1
+          max: 15
+          step: 0.5
+          unit_of_measurement: min
     related_airco_automations:
       name: Related Airco Automations
       description: List of related automation entity_ids
@@ -106,6 +149,11 @@ variables:
   season_entity: !input season_entity
   season: "{{ states(season_entity) | lower }}"
   airco_turning_on_boolean: !input airco_turning_on_boolean
+  heating_target_temp: !input heating_target_temp
+  cooling_target_temp: !input cooling_target_temp
+  settle_time: !input settle_time
+  hvac_mode: "{{ 'heat' if season == 'heating' else 'cool' }}"
+  target_temp: "{{ heating_target_temp if season == 'heating' else cooling_target_temp }}"
 
 trigger:
   - platform: numeric_state
@@ -160,28 +208,37 @@ condition:
       {% else %}
         {{ (states(temperature_sensor)|float(100)) <= (states(priority_temp_sensor)|float(0)) }}
       {% endif %}
-  - alias: No other airco is being turned on (a lock older than 3 minutes is stale, e.g. after a restart)
+  - alias: No other airco is being turned on (a lock held longer than the settle time plus a minute is stale, e.g. after a restart)
     condition: template
     value_template: >
       {{ is_state(airco_turning_on_boolean, 'off')
-         or (now() - states[airco_turning_on_boolean].last_changed).total_seconds() > 180 }}
+         or (now() - states[airco_turning_on_boolean].last_changed).total_seconds()
+            > (settle_time | float(2.5)) * 60 + 60 }}
 
 action:
   - service: input_boolean.turn_on
     target:
       entity_id: !input airco_turning_on_boolean
   - delay: "00:00:05"
-  # set_hvac_mode also turns the airco on; a separate climate.turn_on would send an extra IR command
-  - service: climate.set_hvac_mode
-    target:
-      entity_id: !input climate_entity
-    data:
-      hvac_mode: >
-        {% if season == 'heating' %}
-          heat
-        {% else %}
-          cool
-        {% endif %}
+  # One IR command per start: set_hvac_mode, or set_temperature with an hvac_mode, also turns the airco on,
+  # and the IR code carries mode, fan and target together. A separate climate.turn_on would send an extra command.
+  - if:
+      - alias: A target temperature is set for this season
+        condition: template
+        value_template: "{{ target_temp | float(0) > 0 }}"
+    then:
+      - service: climate.set_temperature
+        target:
+          entity_id: !input climate_entity
+        data:
+          temperature: "{{ target_temp | float }}"
+          hvac_mode: "{{ hvac_mode }}"
+    else:
+      - service: climate.set_hvac_mode
+        target:
+          entity_id: !input climate_entity
+        data:
+          hvac_mode: "{{ hvac_mode }}"
   - action: notify.send_message
     target:
       entity_id: !input notify_entity
@@ -191,10 +248,13 @@ action:
       message: |
         {{ climate_entity }} turned ON in {{ season }} mode.
         Current temperature: {{ states(temperature_sensor) }}°C
+        Airco target: {{ state_attr(climate_entity, 'temperature') }}°C
         Total active aircos: {{ (states(active_aircos_sensor)|int) + 1 }}
         Power Approximation: {{ states(power_approximation_sensor) }}W
         Required: {{ states(required_power_surplus_sensor) }}W
-  - delay: "00:02:30"
+  # Hold the lock until this airco's power draw shows on the meter
+  - delay:
+      minutes: !input settle_time
   - service: input_boolean.turn_off
     target:
       entity_id: !input airco_turning_on_boolean
