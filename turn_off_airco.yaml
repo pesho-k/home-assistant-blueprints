@@ -35,8 +35,10 @@ blueprint:
           domain: input_select
     heating_off_temp:
       name: Heating - Turn Off Above
-      description: In the heating season the airco turns off when the room is warmer than this
-      default: 21
+      description: >
+        In the heating season the airco turns off when the room is warmer than this.
+        Keep it about 2 °C above the Turn ON temperature, so the airco doesn't keep stopping and restarting.
+      default: 22.5
       selector:
         number:
           min: 10
