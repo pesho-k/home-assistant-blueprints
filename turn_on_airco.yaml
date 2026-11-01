@@ -40,7 +40,7 @@ blueprint:
     cooling_trigger_temp:
       name: Cooling - Turn On Above
       description: In the cooling season the airco turns on when the room is warmer than this
-      default: 21
+      default: 22
       selector:
         number:
           min: 18

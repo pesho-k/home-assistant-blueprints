@@ -47,8 +47,10 @@ blueprint:
           unit_of_measurement: "°C"
     cooling_off_temp:
       name: Cooling - Turn Off Below
-      description: In the cooling season the airco turns off when the room is colder than this
-      default: 19
+      description: >
+        In the cooling season the airco turns off when the room is colder than this.
+        Keep it about 2 °C below the Turn ON temperature, so the airco doesn't keep stopping and restarting.
+      default: 20
       selector:
         number:
           min: 15
