@@ -87,9 +87,21 @@ blueprint:
       selector:
         entity:
           domain: sensor
-    priority_temp_sensor:
-      name: Priority Temperature Sensor
-      description: For cooling mode - highest temp among inactive aircos. For heating mode - lowest temp among inactive aircos
+    heating_priority_temp_sensor:
+      name: Heating - Priority Temperature Sensor
+      description: >
+        Lowest temperature among the inactive aircos' rooms that need heating (colder than their own Turn ON
+        temperature). In the heating season an airco only starts if its room is at least this cold, so the
+        coldest room goes first.
+      selector:
+        entity:
+          domain: sensor
+    cooling_priority_temp_sensor:
+      name: Cooling - Priority Temperature Sensor
+      description: >
+        Highest temperature among the inactive aircos' rooms that need cooling (warmer than their own Turn ON
+        temperature). In the cooling season an airco only starts if its room is at least this warm, so the
+        hottest room goes first.
       selector:
         entity:
           domain: sensor
@@ -141,7 +153,8 @@ blueprint:
 
 variables:
   temperature_sensor: !input temperature_sensor
-  priority_temp_sensor: !input priority_temp_sensor
+  heating_priority_temp_sensor: !input heating_priority_temp_sensor
+  cooling_priority_temp_sensor: !input cooling_priority_temp_sensor
   climate_entity: !input climate_entity
   active_aircos_sensor: !input active_aircos_sensor
   power_approximation_sensor: !input power_approximation_sensor
@@ -152,6 +165,7 @@ variables:
   heating_target_temp: !input heating_target_temp
   cooling_target_temp: !input cooling_target_temp
   settle_time: !input settle_time
+  priority_temp_sensor: "{{ heating_priority_temp_sensor if season == 'heating' else cooling_priority_temp_sensor }}"
   hvac_mode: "{{ 'heat' if season == 'heating' else 'cool' }}"
   target_temp: "{{ heating_target_temp if season == 'heating' else cooling_target_temp }}"
 

@@ -57,9 +57,19 @@ blueprint:
           max: 30
           step: 0.5
           unit_of_measurement: "°C"
-    priority_active_temp_sensor:
-      name: Priority Active Temperature Sensor
-      description: For cooling mode - lowest temp among active aircos. For heating mode - highest temp among active aircos
+    heating_priority_active_temp_sensor:
+      name: Heating - Priority Active Temperature Sensor
+      description: >
+        Highest temperature among the active aircos' rooms. In the heating season, when the surplus runs short,
+        the airco in the warmest room turns off first.
+      selector:
+        entity:
+          domain: sensor
+    cooling_priority_active_temp_sensor:
+      name: Cooling - Priority Active Temperature Sensor
+      description: >
+        Lowest temperature among the active aircos' rooms. In the cooling season, when the surplus runs short,
+        the airco in the coldest room turns off first.
       selector:
         entity:
           domain: sensor
@@ -104,10 +114,13 @@ blueprint:
 variables:
   climate_entity: !input climate_entity
   temperature_sensor: !input temperature_sensor
-  priority_active_temp_sensor: !input priority_active_temp_sensor
+  heating_priority_active_temp_sensor: !input heating_priority_active_temp_sensor
+  cooling_priority_active_temp_sensor: !input cooling_priority_active_temp_sensor
   power_approximation_sensor: !input power_approximation_sensor
   season_entity: !input season_entity
   season: "{{ states(season_entity) | lower }}"
+  priority_active_temp_sensor: >-
+    {{ heating_priority_active_temp_sensor if season == 'heating' else cooling_priority_active_temp_sensor }}
   heating_off_temp: !input heating_off_temp
   cooling_off_temp: !input cooling_off_temp
   power_threshold: !input power_threshold
