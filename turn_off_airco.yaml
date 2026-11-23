@@ -3,6 +3,7 @@ blueprint:
   description: >
     Turns off an airco when conditions are met: for cooling mode when temperature drops or insufficient power; for heating mode when temperature rises or insufficient power.
     The season comes from a Season Helper, so all aircos switch between heating and cooling at once.
+    An optional heating minimum run time keeps a power shortage from stopping a heating airco right after it starts.
   domain: automation
   input:
     temperature_sensor:
@@ -104,6 +105,19 @@ blueprint:
           min: -50
           max: 1000
           step: 10
+    heating_min_run_time:
+      name: Heating - Minimum Run Time
+      description: >
+        In the heating season, a power shortage cannot turn the airco off for this long after it starts,
+        so a run lasts long enough to warm the room. The temperature turn-off still works during this time.
+        When the time is up, the power is checked again. Cooling is not affected. 0 turns this off.
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 240
+          step: 5
+          unit_of_measurement: min
     notify_entity:
       name: Notification Entity
       description: Notify entity used to send the status email (e.g. the SMTP notify entity)
@@ -124,6 +138,7 @@ variables:
   heating_off_temp: !input heating_off_temp
   cooling_off_temp: !input cooling_off_temp
   power_threshold: !input power_threshold
+  heating_min_run_time: !input heating_min_run_time
   airco_turning_off_boolean: !input airco_turning_off_boolean
 
 triggers:
@@ -139,6 +154,15 @@ triggers:
     above: !input power_threshold
     trigger: numeric_state
     id: power_insufficient_trigger
+  # A power shortage during the heating minimum run time is ignored and the threshold won't be crossed
+  # again while it lasts, so check the power once more when the airco has been on that long
+  # (in the cooling season this is just an extra check)
+  - entity_id: !input climate_entity
+    trigger: state
+    not_to: ["off", "unavailable", "unknown"]
+    for:
+      minutes: !input heating_min_run_time
+    id: min_run_time_reached
 conditions:
   - alias: The airco is not disabled
     condition: state
@@ -166,6 +190,12 @@ conditions:
         conditions:
           - condition: template
             value_template: "{{ (states(power_approximation_sensor)|float(0)) > (power_threshold|float(0)) }}"
+          - alias: In the heating season, the airco has been on for at least the minimum run time
+            condition: template
+            value_template: >
+              {{ season != 'heating'
+                 or (now() - states[climate_entity].last_changed).total_seconds()
+                    >= (heating_min_run_time | float(0)) * 60 - 10 }}
           - condition: template
             value_template: >-
               {% if season == 'cooling' %}
